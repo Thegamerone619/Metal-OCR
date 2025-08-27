@@ -391,6 +391,7 @@ with col1:
     <div class="logo-text">Atlas Honda</div>
 """, unsafe_allow_html=True)
 # --- RIGHT COLUMN: Upload & Analyze ---
+# --- RIGHT COLUMN: Upload & Analyze ---
 with col2:
     st.markdown("""
     <style>
@@ -403,37 +404,90 @@ with col2:
         text-align: center;
         margin: 1rem 0 0.9rem 0;
         letter-spacing: 0.6px;
-
-        /* White text for clean professional look */
         color: #ffffff;
-
-        /* Thin black stroke for readability */
         -webkit-text-stroke: 0.1px #111;
-
-        /* Subtle shadow for depth */
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Tabs styling */
+    div[data-baseweb="tab-list"] {
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 1rem;
+    }
+    button[data-baseweb="tab"] {
+        background: rgba(20,20,20,0.85);
+        color: #FFD700 !important;
+        border-radius: 8px 8px 0 0;
+        font-weight: 600;
+        padding: 10px 20px;
+        border: 1.5px solid rgba(255,215,0,0.4);
+        transition: all 0.3s ease;
+    }
+    button[data-baseweb="tab"]:hover {
+        background: linear-gradient(90deg, #c8102e, #a60e28);
+        color: #fff !important;
+        border-color: #FFD700;
+        box-shadow: 0 4px 12px rgba(255,215,0,0.5);
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background: linear-gradient(90deg, #FFD700, #e6c200);
+        color: black !important;
+        border-color: #FFD700;
+        box-shadow: 0 6px 16px rgba(255,215,0,0.6);
+    }
+
+    /* Camera input styling */
+    div[data-testid="stCameraInput"] {
+        background: rgba(20,20,20,0.85);
+        border: 2px dashed rgba(255, 215, 0, 0.4);
+        border-radius: 14px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    div[data-testid="stCameraInput"] label {
+        color: #FFD700 !important;
+        font-weight: 700;
+        font-size: 1.2rem;
+        text-shadow: 0 0 8px rgba(255,215,0,0.6);
     }
     </style>
 
-    <div class="upload-title">Upload Image</div>
-""", unsafe_allow_html=True)
-
-
-
+    <div class="upload-title">Upload / Capture Image</div>
+    """, unsafe_allow_html=True)
     
-    uploaded_file = st.file_uploader("Choose an image", type=["png", "jpg", "jpeg"])
-   
-    if uploaded_file:
-        st.image(uploaded_file, caption="Uploaded Inspection Card", use_container_width=True)
-        
 
+    tab_gallery, tab_camera = st.tabs(["🖼️ Gallery", "📷 Camera"])
+
+    picture = None
+    uploaded_file = None
+
+    with tab_gallery:
+        file = st.file_uploader("Choose an image", type=["png", "jpg", "jpeg"], key="gallery_uploader")
+
+        # Store file in session state to prevent reset on mobile
+        if file is not None:
+            st.session_state["uploaded_image"] = file
+
+        if "uploaded_image" in st.session_state:
+            uploaded_file = st.session_state["uploaded_image"]
+
+    with tab_camera:
+        picture = st.camera_input("Take a photo", key="camera_input")
+
+    # Decide which input to use
+    final_image = picture if picture else uploaded_file
+
+    if final_image:
+        st.image(final_image, caption="Selected Inspection Card", use_container_width=True)
 
     analyze_button = st.button("Analyze")
 
-    if analyze_button:
+    if analyze_button and final_image:
         with st.spinner("⚙️ Processing image..."):
-            # Convert uploaded file to base64
-            encoded_image = base64.b64encode(uploaded_file.read()).decode("utf-8")
+            # Convert uploaded file (BytesIO) to base64
+            encoded_image = base64.b64encode(final_image.getvalue()).decode("utf-8")
 
             # Create message for Gemini
             message = HumanMessage(content=[
@@ -448,7 +502,6 @@ with col2:
                 {"type": "image_url", "image_url": f"data:image/jpeg;base64,{encoded_image}"}
             ])
 
-            # Get response
             response = llm.invoke([message])
             result_text = response.content.strip()
 
@@ -473,4 +526,3 @@ with col2:
         """,
         unsafe_allow_html=True
     )
-
